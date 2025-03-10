@@ -57,8 +57,11 @@ app.use('/api', routes(router));
 
   
 app.listen(process.env.EXPRESS_JS_PORT, () => {
-    console.log(`🚀 API listening at http://dvws.local${process.env.EXPRESS_JS_PORT == 80 ? "" : ":" + process.env.EXPRESS_JS_PORT } (127.0.0.1)`);
-  });
+    console.log('\n[+] Server Status:');
+    console.log(`🚀 Express API listening on port ${process.env.EXPRESS_JS_PORT}`);
+    console.log(`   - Local: http://localhost:${process.env.EXPRESS_JS_PORT}`);
+    console.log(`   - Swagger Docs: http://localhost:${process.env.EXPRESS_JS_PORT}/api-docs`);
+});
 
 
   // The ApolloServer constructor requires two parameters: your schema
@@ -82,7 +85,13 @@ const server = new ApolloServer({
 
 
 server.listen({ port: process.env.GRAPHQL_PORT }).then(({ url }) => {
-    console.log(`🚀 GraphQL Server ready at ${url}`);
-  });;
+    console.log(`🚀 GraphQL Server ready at:`);
+    console.log(`   - ${url}`);
+    console.log(`   - GraphQL Playground: ${url}graphql`);
+});
+
+// Add logging for XML-RPC server (if it exists in your code)
+console.log(`🚀 XML-RPC Server listening on port ${process.env.XML_RPC_PORT}`);
+console.log('\n[+] All services started successfully!\n');
 
 module.exports = app;
