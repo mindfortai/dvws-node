@@ -20,7 +20,7 @@ async function connectWithRetry(maxAttempts = 5, delay = 5000) {
   
   const sequelize = new Sequelize('dvws_sqldb', connUser, connPass, {
     host: connHost,
-    port: 59298, // Add the Railway port for MySQL
+    port: 57343, // Updated Railway MySQL port
     dialect: 'mysql',
     logging: console.log,
     dialectOptions: {
