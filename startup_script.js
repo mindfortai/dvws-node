@@ -13,9 +13,25 @@ const connUri = process.env.MONGO_LOCAL_CONN_URL;
 
 // Add retry mechanism for database connection
 async function connectWithRetry(maxAttempts = 5, delay = 5000) {
+  console.log('[+] Environment variables:');
+  console.log(`Host: ${connHost}`);
+  console.log(`Username: ${connUser}`);
+  console.log(`Password length: ${connPass?.length}`);
+  
   const sequelize = new Sequelize('dvws_sqldb', connUser, connPass, {
     host: connHost,
-    dialect: 'mysql'
+    port: 59298, // Add the Railway port for MySQL
+    dialect: 'mysql',
+    logging: console.log,
+    dialectOptions: {
+      connectTimeout: 20000, // Increase timeout to 20 seconds
+      ssl: {
+        rejectUnauthorized: false // Add SSL option for Railway
+      }
+    },
+    retry: {
+      max: 3 // Add connection retry at Sequelize level
+    }
   });
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -25,6 +41,13 @@ async function connectWithRetry(maxAttempts = 5, delay = 5000) {
       console.log('[+] Successfully connected to MySQL');
       return sequelize;
     } catch (error) {
+      console.error(`[!] Connection error details:`, {
+        message: error.message,
+        code: error.original?.code,
+        errno: error.original?.errno,
+        syscall: error.original?.syscall
+      });
+      
       if (attempt === maxAttempts) {
         throw error;
       }
