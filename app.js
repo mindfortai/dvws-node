@@ -52,10 +52,49 @@ var corsOptions = {
 app.use(cors(corsOptions))
 app.use('/api', routes(router));
 
-// Create global sequelize instance
+// Create global sequelize instance with connection handling
 let sequelize = null;
 
-// Add database connection function
+// Initialize Sequelize with connection handling
+function initializeSequelize() {
+  if (!sequelize) {
+    console.log('[+] MySQL Connection Details:');
+    console.log(`Host: ${process.env.SQL_LOCAL_CONN_URL}`);
+    console.log(`Database: ${process.env.SQL_DB_NAME}`);
+    
+    sequelize = new Sequelize(process.env.SQL_DB_NAME, process.env.SQL_USERNAME, process.env.SQL_PASSWORD, {
+      host: process.env.SQL_LOCAL_CONN_URL,
+      port: 57343,
+      dialect: 'mysql',
+      logging: console.log,
+      dialectOptions: {
+        connectTimeout: 20000,
+        ssl: {
+          rejectUnauthorized: false
+        }
+      },
+      pool: {
+        max: 5,
+        min: 0,
+        acquire: 30000,
+        idle: 10000
+      },
+      keepAlive: true
+    });
+
+    // Handle connection events
+    sequelize.afterConnect(() => {
+      console.log('[+] Successfully connected to MySQL');
+    });
+
+    sequelize.beforeDisconnect(() => {
+      console.log('[!] MySQL connection is about to disconnect');
+    });
+  }
+  return sequelize;
+}
+
+// Modify database connection function
 async function connectDatabases() {
   // Connect to MongoDB
   try {
@@ -69,44 +108,15 @@ async function connectDatabases() {
     process.exit(1);
   }
 
-  // Connect to MySQL
-  sequelize = new Sequelize(process.env.SQL_DB_NAME, process.env.SQL_USERNAME, process.env.SQL_PASSWORD, {
-    host: process.env.SQL_LOCAL_CONN_URL,
-    port: 57343,
-    dialect: 'mysql',
-    dialectOptions: {
-      connectTimeout: 20000,
-      ssl: {
-        rejectUnauthorized: false
-      }
-    },
-    pool: {
-      max: 5,
-      min: 0,
-      acquire: 30000,
-      idle: 10000
-    },
-    keepAlive: true
-  });
-
-  // Add connection error handlers
-  sequelize.beforeConnect(async (config) => {
-    console.log('Attempting to connect to MySQL...');
-  });
-
-  // Handle disconnects with a retry mechanism
-  sequelize.authenticate()
-    .then(() => {
-      console.log('Connected to MySQL');
-    })
-    .catch(async (error) => {
-      console.error('MySQL connection failed:', error);
-      // Retry connection after delay
-      setTimeout(() => {
-        console.log('Attempting to reconnect...');
-        connectDatabases();
-      }, 5000);
-    });
+  // Initialize and test MySQL connection
+  try {
+    const sequelize = initializeSequelize();
+    await sequelize.authenticate();
+    console.log('[+] MySQL connection authenticated');
+  } catch (error) {
+    console.error('[!] MySQL connection failed:', error);
+    process.exit(1);
+  }
 }
 
 // Modify startup sequence
@@ -154,3 +164,32 @@ startServers().catch(error => {
 
 // Export both app and sequelize
 module.exports = { app, sequelize };
+
+// Add this near your other routes
+app.get('/health', async (req, res) => {
+  try {
+    // Test MongoDB
+    const mongoStatus = mongoose.connection.readyState === 1;
+    
+    // Test MySQL
+    let mysqlStatus = false;
+    try {
+      await sequelize.authenticate();
+      mysqlStatus = true;
+    } catch (error) {
+      console.error('MySQL health check failed:', error);
+    }
+
+    res.json({
+      status: 'ok',
+      mongo: mongoStatus,
+      mysql: mysqlStatus,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      error: error.message
+    });
+  }
+});
