@@ -80,26 +80,37 @@ async function createAdmin() {
   try {
     await mongoose.connect(connUri, { useNewUrlParser: true, useUnifiedTopology: true });
     
-    const user = new User({
-      username: "admin",
-      password: "letmein",
-      admin: true
-    });
+    // Check if users exist first
+    const existingAdmin = await User.findOne({ username: "admin" });
+    const existingTest = await User.findOne({ username: "test" });
 
-    const user2 = new User({
-      username: "test",
-      password: "test",
-      admin: false
-    });
+    if (!existingAdmin) {
+      const user = new User({
+        username: "admin",
+        password: "letmein",
+        admin: true
+      });
+      await user.save();
+      console.log('Admin user created:', user);
+    } else {
+      console.log('Admin user already exists');
+    }
 
-    await user.save();
-    console.log('Admin user created:', user);
-    await user2.save();
-    console.log('Test user created:', user2);
+    if (!existingTest) {
+      const user2 = new User({
+        username: "test",
+        password: "test",
+        admin: false
+      });
+      await user2.save();
+      console.log('Test user created:', user2);
+    } else {
+      console.log('Test user already exists');
+    }
     
     await mongoose.disconnect();
   } catch (error) {
-    console.error('Error creating users:', error);
+    console.error('Error handling users:', error);
     throw error;
   }
 }
