@@ -70,7 +70,7 @@ function initializeSequelize() {
         max: 5,
         min: 1,
         acquire: 60000,
-        idle: 10000
+        idle: 28800000  // Match MySQL's wait_timeout of 8 hours
       },
       dialectOptions: {
         connectTimeout: 60000,
