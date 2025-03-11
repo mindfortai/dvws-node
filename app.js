@@ -71,24 +71,44 @@ function initializeSequelize() {
         connectTimeout: 60000,
         ssl: {
           rejectUnauthorized: false
-        }
+        },
+        keepAlive: true,
+        keepAliveInitialDelay: 10000
       },
       pool: {
         max: 5,
         min: 1,           // Keep at least one connection always active
         acquire: 60000,
         idle: 1000000000  // Set an extremely high idle timeout (effectively never release)
-      },
-      keepAlive: true
+      }
     });
+
+    // Add periodic keepalive query
+    setInterval(async () => {
+      try {
+        await sequelize.query('SELECT 1');
+        console.log('[+] Keepalive query executed successfully');
+      } catch (error) {
+        console.error('[!] Keepalive query failed:', error);
+        // Attempt to reconnect
+        try {
+          await sequelize.authenticate();
+          console.log('[+] Reconnection successful');
+        } catch (reconnectError) {
+          console.error('[!] Reconnection failed:', reconnectError);
+        }
+      }
+    }, 30000); // Run every 30 seconds
 
     // Handle connection events
-    sequelize.afterConnect(() => {
-      console.log('[+] Successfully connected to MySQL');
-    });
-
-    sequelize.beforeDisconnect(() => {
+    sequelize.connectionManager.on('disconnect', async () => {
       console.log('[!] MySQL connection is about to disconnect');
+      try {
+        await sequelize.authenticate();
+        console.log('[+] Successfully reconnected to MySQL');
+      } catch (error) {
+        console.error('[!] Failed to reconnect:', error);
+      }
     });
   }
   return sequelize;
