@@ -79,7 +79,7 @@ function initializeSequelize() {
         max: 5,
         min: 1,           // Keep at least one connection always active
         acquire: 60000,
-        idle: 1000000000  // Set an extremely high idle timeout (effectively never release)
+        idle: 1000000000  // Set an extremely high idle timeout
       }
     });
 
@@ -100,15 +100,14 @@ function initializeSequelize() {
       }
     }, 30000); // Run every 30 seconds
 
-    // Handle connection events
-    sequelize.connectionManager.on('disconnect', async () => {
-      console.log('[!] MySQL connection is about to disconnect');
-      try {
-        await sequelize.authenticate();
-        console.log('[+] Successfully reconnected to MySQL');
-      } catch (error) {
-        console.error('[!] Failed to reconnect:', error);
-      }
+    // Monitor pool metrics
+    sequelize.addHook('beforePoolAcquire', () => {
+      console.log('Pool metrics:', {
+        size: sequelize.connectionManager.pool.size,
+        available: sequelize.connectionManager.pool.available,
+        using: sequelize.connectionManager.pool.using,
+        waiting: sequelize.connectionManager.pool.waiting
+      });
     });
   }
   return sequelize;
