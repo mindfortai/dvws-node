@@ -64,22 +64,15 @@ function initializeSequelize() {
     
     sequelize = new Sequelize(process.env.SQL_DB_NAME, process.env.SQL_USERNAME, process.env.SQL_PASSWORD, {
       host: process.env.SQL_LOCAL_CONN_URL,
-      port: 57343,
       dialect: 'mysql',
-      logging: console.log,
-      dialectOptions: {
-        connectTimeout: 60000,
-        ssl: {
-          rejectUnauthorized: false
-        },
-        keepAlive: true,
-        keepAliveInitialDelay: 10000
-      },
       pool: {
         max: 5,
-        min: 1,           // Keep at least one connection always active
+        min: 0,
         acquire: 60000,
-        idle: 1000000000  // Set an extremely high idle timeout
+        idle: 10000
+      },
+      dialectOptions: {
+        connectTimeout: 60000
       }
     });
 
