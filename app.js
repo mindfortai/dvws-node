@@ -67,10 +67,10 @@ function initializeSequelize() {
       port: 57343,
       dialect: 'mysql',
       pool: {
-        max: 5,
-        min: 1,
+        max: 1,         // Reduce to single connection
+        min: 0,         // Allow pool to empty
         acquire: 60000,
-        idle: 28800000  // Match MySQL's wait_timeout of 8 hours
+        idle: 10000     // Release connection after 10s idle
       },
       dialectOptions: {
         connectTimeout: 60000,
@@ -79,35 +79,24 @@ function initializeSequelize() {
         }
       },
       retry: {
-        max: 3
+        max: 5,         // Increased retries
+        backoffBase: 1000,
+        backoffExponent: 1.5
       }
     });
 
-    // Add periodic keepalive query
-    setInterval(async () => {
+    // Remove the keepalive query
+    // Instead, handle connection per request
+    app.use(async (req, res, next) => {
       try {
-        await sequelize.query('SELECT 1');
-        console.log('[+] Keepalive query executed successfully');
-      } catch (error) {
-        console.error('[!] Keepalive query failed:', error);
-        // Attempt to reconnect
-        try {
+        if (!sequelize.connectionManager.hasOwnProperty('getConnection')) {
           await sequelize.authenticate();
-          console.log('[+] Reconnection successful');
-        } catch (reconnectError) {
-          console.error('[!] Reconnection failed:', reconnectError);
         }
+        next();
+      } catch (error) {
+        console.error('[!] Database connection error:', error);
+        next(error);
       }
-    }, 30000); // Run every 30 seconds
-
-    // Monitor pool metrics
-    sequelize.addHook('beforePoolAcquire', () => {
-      console.log('Pool metrics:', {
-        size: sequelize.connectionManager.pool.size,
-        available: sequelize.connectionManager.pool.available,
-        using: sequelize.connectionManager.pool.using,
-        waiting: sequelize.connectionManager.pool.waiting
-      });
     });
   }
   return sequelize;
