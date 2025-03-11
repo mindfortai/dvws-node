@@ -52,6 +52,9 @@ var corsOptions = {
 app.use(cors(corsOptions))
 app.use('/api', routes(router));
 
+// Create global sequelize instance
+let sequelize = null;
+
 // Add database connection function
 async function connectDatabases() {
   // Connect to MongoDB
@@ -67,7 +70,7 @@ async function connectDatabases() {
   }
 
   // Connect to MySQL
-  const sequelize = new Sequelize(process.env.SQL_DB_NAME, process.env.SQL_USERNAME, process.env.SQL_PASSWORD, {
+  sequelize = new Sequelize(process.env.SQL_DB_NAME, process.env.SQL_USERNAME, process.env.SQL_PASSWORD, {
     host: process.env.SQL_LOCAL_CONN_URL,
     port: 57343,
     dialect: 'mysql',
@@ -88,6 +91,21 @@ async function connectDatabases() {
       max: 5,
       backoffBase: 1000,
       backoffExponent: 1.1
+    }
+  });
+
+  // Add connection error handlers
+  sequelize.addHook('beforeConnect', async (config) => {
+    console.log('Attempting to connect to MySQL...');
+  });
+
+  sequelize.connectionManager.on('disconnect', async () => {
+    console.log('MySQL connection lost. Attempting to reconnect...');
+    try {
+      await sequelize.authenticate();
+      console.log('Reconnected to MySQL');
+    } catch (error) {
+      console.error('Failed to reconnect:', error);
     }
   });
 
@@ -143,4 +161,5 @@ startServers().catch(error => {
   process.exit(1);
 });
 
-module.exports = app;
+// Export both app and sequelize
+module.exports = { app, sequelize };
