@@ -76,6 +76,18 @@ async function connectDatabases() {
       ssl: {
         rejectUnauthorized: false
       }
+    },
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 30000,
+      idle: 10000
+    },
+    keepAlive: true,
+    retry: {
+      max: 5,
+      backoffBase: 1000,
+      backoffExponent: 1.1
     }
   });
 
