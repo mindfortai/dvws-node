@@ -68,16 +68,16 @@ function initializeSequelize() {
       dialect: 'mysql',
       logging: console.log,
       dialectOptions: {
-        connectTimeout: 20000,
+        connectTimeout: 60000,
         ssl: {
           rejectUnauthorized: false
         }
       },
       pool: {
         max: 5,
-        min: 0,
-        acquire: 30000,
-        idle: 10000
+        min: 1,           // Keep at least one connection always active
+        acquire: 60000,
+        idle: 1000000000  // Set an extremely high idle timeout (effectively never release)
       },
       keepAlive: true
     });
