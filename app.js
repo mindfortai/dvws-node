@@ -86,36 +86,27 @@ async function connectDatabases() {
       acquire: 30000,
       idle: 10000
     },
-    keepAlive: true,
-    retry: {
-      max: 5,
-      backoffBase: 1000,
-      backoffExponent: 1.1
-    }
+    keepAlive: true
   });
 
   // Add connection error handlers
-  sequelize.addHook('beforeConnect', async (config) => {
+  sequelize.beforeConnect(async (config) => {
     console.log('Attempting to connect to MySQL...');
   });
 
-  sequelize.connectionManager.on('disconnect', async () => {
-    console.log('MySQL connection lost. Attempting to reconnect...');
-    try {
-      await sequelize.authenticate();
-      console.log('Reconnected to MySQL');
-    } catch (error) {
-      console.error('Failed to reconnect:', error);
-    }
-  });
-
-  try {
-    await sequelize.authenticate();
-    console.log('Connected to MySQL');
-  } catch (error) {
-    console.error('MySQL connection failed:', error);
-    process.exit(1);
-  }
+  // Handle disconnects with a retry mechanism
+  sequelize.authenticate()
+    .then(() => {
+      console.log('Connected to MySQL');
+    })
+    .catch(async (error) => {
+      console.error('MySQL connection failed:', error);
+      // Retry connection after delay
+      setTimeout(() => {
+        console.log('Attempting to reconnect...');
+        connectDatabases();
+      }, 5000);
+    });
 }
 
 // Modify startup sequence
